@@ -13,10 +13,11 @@ class MoviesImportJobs(BaseModel):
     process_dir: Optional[str]
     data_group: Optional[str]
     data_project: Optional[str]
+    star_mark: bool = False
     num_movies: int
 
     @classmethod
-    def create_from_jobs(cls, data: dict[str, Any], project: dict[str, Any]):
+    def create_from_jobs(cls, data: dict[str, Any], project: dict[str, Any], star_mark: bool):
         if isinstance(data['params_spec'], list):
             raw_path = [i['blob_paths']['value'] for i in data['params_spec']]
             group = group_from_raw(raw_path[0])
@@ -33,6 +34,7 @@ class MoviesImportJobs(BaseModel):
             "data_group": group,
             "data_project": data_projects,
             "workspace_uid": data["workspace_uids"],
+            "start_mark": star_mark,
             "num_movies": data['output_result_groups'][0]["num_items"]
         }
         return cls(**res)
@@ -68,6 +70,7 @@ class MoviesImportJobs(BaseModel):
             "data_group": group,
             "data_project": raw_path,
             "workspace_uid": data["uid"] if isinstance(data["uid"], list) else [data["uid"]],
+            "star_mark": len(data.get("starred_by", [])) > 0, 
             "num_movies": data["exposure_groups"][0]["num_exposures_found"]
         }
         return cls(**live_res)
