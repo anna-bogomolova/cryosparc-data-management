@@ -14,6 +14,7 @@ class MoviesImportJobs(BaseModel):
     data_group: Optional[str]
     data_project: Optional[str]
     star_mark: bool = False
+    job_type: str
     num_movies: int
 
     @classmethod
@@ -34,7 +35,8 @@ class MoviesImportJobs(BaseModel):
             "data_group": group,
             "data_project": data_projects,
             "workspace_uid": data["workspace_uids"],
-            "start_mark": star_mark,
+            "star_mark": star_mark,
+            "job_type": data["job_type"],
             "num_movies": data['output_result_groups'][0]["num_items"]
         }
         return cls(**res)
@@ -71,6 +73,7 @@ class MoviesImportJobs(BaseModel):
             "data_project": raw_path,
             "workspace_uid": data["uid"] if isinstance(data["uid"], list) else [data["uid"]],
             "star_mark": len(data.get("starred_by", [])) > 0, 
+            "job_type": "live_session",
             "num_movies": data["exposure_groups"][0]["num_exposures_found"]
         }
         return cls(**live_res)

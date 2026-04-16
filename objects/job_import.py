@@ -14,12 +14,31 @@ class MoviesImportJobs(BaseModel):
     process_dir: Optional[str]
     data_group: Optional[str]
     data_project: Optional[str]
+    star_mark: bool = False
+    job_type: str
     num_movies: int
 
     @classmethod
     def create_from_jobs(cls, data: Job, cryo_agent: CryoSPARC):
         raw_path = data.spec.params.blob_paths
         group, raw_path = group_from_raw(raw_path)
+        if data.spec.type == 'import_micrographs':
+            type_outputs = 'imported_micrographs'
+        else:
+            type_outputs = 'imported_movies'
+
+        star_mark = False
+        for ws in data.workspace_uids:
+            try:
+                wspace = cryo_agent.api.workspaces.find_one(data.project_uid, ws)
+                starred = len(wspace.starred_by) > 0
+                star_mark = star_mark | starred
+            except Exception as e: 
+                print(f"Skipping workspace {ws}: {e}")
+                continue
+
+            starred = len(cryo_agent.api.workspaces.find_one(data.project_uid, ws).starred_by) > 0
+            star_mark = star_mark | starred
 
         new_instance = {
             "project_uid": data.project_uid,
@@ -28,7 +47,9 @@ class MoviesImportJobs(BaseModel):
             "process_dir": cryo_agent.api.jobs.get_directory(data.project_uid, data.uid),
             "data_group": group,
             "data_project": raw_path,
-            "num_movies": data.spec.outputs.root['imported_movies'].num_items
+            "star_mark": star_mark,
+            "job_type": type_outputs,
+            "num_movies": data.spec.outputs.root[type_outputs].num_items
         }
         return cls(**new_instance)
     
@@ -62,6 +83,8 @@ class MoviesImportJobs(BaseModel):
             "verify": verify,
             "data_group": group,
             "data_project": raw_path,
+            "star_mark": len(data.starred_by) > 0, 
+            "job_type": "live_session",
             "num_movies": sess_files[0].num_exposures_found
         }
         return cls(**new_instance)
