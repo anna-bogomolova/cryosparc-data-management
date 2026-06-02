@@ -37,12 +37,20 @@ def rejected_exposures(remote_cs, project, job, file_name='', **kwargs):
                                                     uid=ancestor_jobs, 
                                                     type=['import_movies', 'live_session']
                                                 )
+    print(f"Ancestor jobs | {ancestor_jobs}")
+
+    job_prefixes = {}
+    for jb in ancestor_jobs_details:
     ### Find location on imported files
-    if ancestor_jobs_details[0].spec.type == 'import_movies':
-        import_params = MoviesImportJobs.create_from_jobs(ancestor_jobs_details[0], remote_cs)
-    else:
-        import_params = MoviesImportJobs.create_from_live_jobs(ancestor_jobs_details[0], remote_cs)
-    prefix_name = import_params.data_project.rsplit('/', maxsplit=1).pop(0)
+        if jb.spec.type == 'import_movies':
+            import_params = MoviesImportJobs.create_from_jobs(jb, remote_cs)
+            name_dataset = jb.uid
+        else:
+            import_params = MoviesImportJobs.create_from_live_jobs(jb, remote_cs)
+            name_dataset = jb.spec.params.session_uid
+        prefix_name = import_params.data_project.rsplit('/', maxsplit=1).pop(0)
+        job_prefixes[name_dataset] = prefix_name
+
     ### Iterate over all rejected exposure files and combine names
     job_check = remote_cs.find_job(project, job)
     curated_list = job_check.list_files()
@@ -51,10 +59,12 @@ def rejected_exposures(remote_cs, project, job, file_name='', **kwargs):
     for file in download_list:
         job_check_cs = job_check.download_dataset(file)
         for row in job_check_cs.filter_fields(['movie_blob/path', 'uid']).to_records():
-            exposure_name = row[1].rsplit('/', maxsplit=1).pop()
+            split_name = row[1].rsplit('/')
+            job_attr, exposure_name = split_name[0], split_name[-1]
             if str(row[0]) in exposure_name:
                 exposure_name = exposure_name.split('_', maxsplit=1).pop()
-            file_names.append(f"{prefix_name}/{exposure_name}")
+            if '.mrc' not in exposure_name:
+                file_names.append(f"{job_prefixes[job_attr]}/{exposure_name}")
 
     file_dump = file_name if file_name else f"rejected_exposures_{datetime.now().strftime('%Y%m%d')}"
     with open(f"{file_dump}.txt", "w") as f:
